@@ -13,6 +13,18 @@ export interface ChartNote {
   judgement: Judgement | null;
 }
 
+/** 同時刻のノーツをまとめたコード（和音） */
+export interface Chord {
+  /** 秒単位の出現時刻 */
+  time: number;
+  /** 押さえるべきレーンの配列（ソート済み） */
+  lanes: NeckKey[];
+  /** 判定済みかどうか */
+  hit: boolean;
+  /** 判定結果 */
+  judgement: Judgement | null;
+}
+
 /** 譜面全体 */
 export interface Chart {
   /** 曲名（MIDIトラック名またはファイル名） */
@@ -21,9 +33,11 @@ export interface Chart {
   bpm: number;
   /** ノート配列（timeでソート済み） */
   notes: ChartNote[];
+  /** コード配列（判定単位） */
+  chords: Chord[];
   /** 譜面の総時間（秒）：最後のノートの時刻 + 余白 */
   duration: number;
-  /** 総ノート数 */
+  /** 総ノート数（コード数ベース） */
   totalNotes: number;
 }
 

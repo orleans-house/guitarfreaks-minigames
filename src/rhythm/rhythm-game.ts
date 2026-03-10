@@ -1,11 +1,11 @@
 import type { Scene } from "../core/scene.ts";
-import type { GamepadInput, NeckKey } from "../core/gamepad.ts";
+import type { GamepadInput } from "../core/gamepad.ts";
 import { drawText } from "../core/canvas.ts";
 import { getHighScore, saveHighScore } from "../core/score.ts";
-import type { Chart, Judgement, RhythmPhase } from "./types.ts";
+import type { Chart, Chord, Judgement, RhythmPhase } from "./types.ts";
 import { loadMidiFile } from "./midi-loader.ts";
 import { MidiSynth } from "./synth.ts";
-import { judgeNote, findClosestNote, calcScore, processAutoMiss, MISS_WINDOW } from "./judge.ts";
+import { judgeChord, findClosestChord, calcScore, processAutoMiss } from "./judge.ts";
 import {
   drawHighway,
   drawBarLines,
@@ -16,7 +16,9 @@ import {
 } from "./highway-renderer.ts";
 
 const GAME_ID = "rhythm-game";
-const LANES: NeckKey[] = ["r", "g", "b", "y", "p"];
+
+/** コードグルーピングの閾値（秒）: midi-loaderと同じ値 */
+const CHORD_THRESHOLD = 0.01;
 
 /** ゲーム開始前のカウントダウン（秒） */
 const COUNTDOWN_SEC = 2;
@@ -41,7 +43,6 @@ export class RhythmGame implements Scene {
   private score = 0;
   private combo = 0;
   private maxCombo = 0;
-  private nextNoteIndex = 0;
   private judgementCounts: Record<Judgement, number> = {
     perfect: 0,
     great: 0,
@@ -140,17 +141,20 @@ export class RhythmGame implements Scene {
     this.score = 0;
     this.combo = 0;
     this.maxCombo = 0;
-    this.nextNoteIndex = 0;
     this.judgementCounts = { perfect: 0, great: 0, good: 0, miss: 0 };
     this.lastJudgement = null;
     this.currentTime = -COUNTDOWN_SEC;
     this.startTimestamp = 0; // set after countdown
 
-    // ノートの状態をリセット
+    // ノートとコードの状態をリセット
     if (this.chart) {
       for (const note of this.chart.notes) {
         note.hit = false;
         note.judgement = null;
+      }
+      for (const chord of this.chart.chords) {
+        chord.hit = false;
+        chord.judgement = null;
       }
     }
 
@@ -219,57 +223,72 @@ export class RhythmGame implements Scene {
     // 通常プレイ: performance.now()基準の絶対時刻
     this.currentTime = (now - this.startTimestamp) / 1000;
 
-    // 自動MISS判定
-    const autoMiss = processAutoMiss(
-      this.chart.notes,
-      this.currentTime,
-      this.nextNoteIndex,
-    );
-    this.nextNoteIndex = autoMiss.nextIndex;
-    if (autoMiss.missCount > 0) {
-      this.judgementCounts.miss += autoMiss.missCount;
+    // 自動MISS判定（コード単位）
+    const missedChords = processAutoMiss(this.chart.chords, this.currentTime);
+    if (missedChords.length > 0) {
+      this.judgementCounts.miss += missedChords.length;
       this.combo = 0;
       this.lastJudgement = { type: "miss", time: now };
+      // 対応するChartNoteも同期
+      for (const chord of missedChords) {
+        this.syncChartNotes(chord);
+      }
     }
 
-    // ネックボタン入力チェック
-    const justPressed = this.input.getNeckJustPressed();
-    for (const lane of LANES) {
-      if (!justPressed[lane]) continue;
+    // ピッキング入力チェック（Up or Down）
+    if (this.input.isPickUpJustPressed() || this.input.isPickDownJustPressed()) {
+      const neckState = this.input.getNeckState();
+      const chord = findClosestChord(this.chart.chords, this.currentTime);
 
-      const noteIndex = findClosestNote(
-        this.chart.notes,
-        lane,
-        this.currentTime,
-      );
-      if (noteIndex === null) continue;
+      if (chord !== null) {
+        const judgement = judgeChord(chord, neckState, this.currentTime);
 
-      const note = this.chart.notes[noteIndex];
-      const judgement = judgeNote(note.time, this.currentTime);
-      if (judgement === null) continue;
+        // コードを判定済みにする
+        chord.hit = true;
+        chord.judgement = judgement;
+        this.judgementCounts[judgement]++;
 
-      // ノートを判定済みにする
-      note.hit = true;
-      note.judgement = judgement;
-      this.judgementCounts[judgement]++;
+        // 対応するChartNoteを同期
+        this.syncChartNotes(chord);
 
-      if (judgement === "miss") {
-        this.combo = 0;
-      } else {
-        const points = calcScore(judgement, this.combo);
-        this.score += points;
-        this.combo++;
-        if (this.combo > this.maxCombo) {
-          this.maxCombo = this.combo;
+        if (judgement === "miss") {
+          this.combo = 0;
+        } else {
+          const points = calcScore(judgement, this.combo);
+          this.score += points;
+          this.combo++;
+          if (this.combo > this.maxCombo) {
+            this.maxCombo = this.combo;
+          }
         }
-      }
 
-      this.lastJudgement = { type: judgement, time: now };
+        this.lastJudgement = { type: judgement, time: now };
+      }
+      // ピックしたが近くにコードがない場合は無視（ペナルティなし）
     }
 
     // 全ノート判定完了 or 譜面終了
     if (this.currentTime > this.chart.duration) {
       this.transitionToResult();
+    }
+  }
+
+  /**
+   * コードが判定された際に、対応するChartNoteのhitとjudgementを同期する。
+   * これによりhighway-rendererがノートを非表示にする。
+   */
+  private syncChartNotes(chord: Chord): void {
+    if (!this.chart) return;
+    for (const note of this.chart.notes) {
+      if (note.hit) continue;
+      if (Math.abs(note.time - chord.time) < CHORD_THRESHOLD) {
+        if (chord.lanes.includes(note.lane)) {
+          note.hit = true;
+          note.judgement = chord.judgement;
+        }
+      }
+      // ソート済みなので、コード時刻を十分超えたら終了
+      if (note.time > chord.time + CHORD_THRESHOLD) break;
     }
   }
 

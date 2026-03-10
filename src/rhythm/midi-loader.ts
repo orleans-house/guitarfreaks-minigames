@@ -1,7 +1,7 @@
 import { Midi } from "@tonejs/midi";
 import type { Track } from "@tonejs/midi";
 import type { Note } from "@tonejs/midi/dist/Note";
-import type { Chart, ChartNote, LoadedSong } from "./types.ts";
+import type { Chart, ChartNote, Chord, LoadedSong } from "./types.ts";
 import type { NeckKey } from "../core/gamepad.ts";
 
 /** Clone Hero互換 MIDIノート番号 → NeckKey マッピング */
@@ -15,6 +15,38 @@ const NOTE_MAP: Record<number, NeckKey> = {
 
 /** 5レーンのキー配列 */
 const LANES: NeckKey[] = ["r", "g", "b", "y", "p"];
+
+/** コードグルーピングの閾値（秒）: この時間差以内のノートは同一コード */
+const CHORD_THRESHOLD = 0.01;
+
+/** レーンのソート順 */
+const LANE_ORDER: Record<NeckKey, number> = { r: 0, g: 1, b: 2, y: 3, p: 4 };
+
+/**
+ * ソート済みChartNote配列から同時刻ノートをグルーピングしてChord配列を生成する。
+ * @param notes timeでソート済みのChartNote配列
+ * @returns Chord配列
+ */
+function groupNotesIntoChords(notes: ChartNote[]): Chord[] {
+  const chords: Chord[] = [];
+  let i = 0;
+  while (i < notes.length) {
+    const time = notes[i].time;
+    const lanes: NeckKey[] = [notes[i].lane];
+    let j = i + 1;
+    while (j < notes.length && notes[j].time - time < CHORD_THRESHOLD) {
+      if (!lanes.includes(notes[j].lane)) {
+        lanes.push(notes[j].lane);
+      }
+      j++;
+    }
+    // レーン順でソート
+    lanes.sort((a, b) => LANE_ORDER[a] - LANE_ORDER[b]);
+    chords.push({ time, lanes, hit: false, judgement: null });
+    i = j;
+  }
+  return chords;
+}
 
 /**
  * メロディトラックとして最適なトラックを選択する。
@@ -179,12 +211,16 @@ export function loadMidiFile(arrayBuffer: ArrayBuffer, fileName: string): Loaded
   const lastNoteTime = chartNotes[chartNotes.length - 1].time;
   const duration = lastNoteTime + 2;
 
+  // ノートをコード（和音）にグルーピング
+  const chords = groupNotesIntoChords(chartNotes);
+
   const chart: Chart = {
     title,
     bpm: Math.round(bpm),
     notes: chartNotes,
+    chords,
     duration,
-    totalNotes: chartNotes.length,
+    totalNotes: chords.length,
   };
 
   return { chart, midi };
