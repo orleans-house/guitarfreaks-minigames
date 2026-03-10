@@ -2,12 +2,9 @@ import type { Scene, SceneManager } from "../core/scene.ts";
 import type { GamepadInput, NeckKey } from "../core/gamepad.ts";
 import { drawText } from "../core/canvas.ts";
 import { getHighScore } from "../core/score.ts";
-import { WhackAMoleGame } from "../games/whack-a-mole.ts";
-import { FingerChaseGame } from "../games/finger-chase.ts";
 import { SimonSaysGame } from "../games/simon-says.ts";
 import { SpeedTypingGame } from "../games/speed-typing.ts";
 import { TrillBattleGame } from "../games/trill-battle.ts";
-import { PatternRainGame } from "../games/pattern-rain.ts";
 
 interface GameEntry {
   id: string;
@@ -26,18 +23,6 @@ export class MenuScene implements Scene {
   ) {
     this.games = [
       {
-        id: "whack-a-mole",
-        name: "Whack-a-Mole",
-        available: true,
-        factory: () => new WhackAMoleGame(this.input, () => this.returnToMenu()),
-      },
-      {
-        id: "finger-chase",
-        name: "Finger Chase",
-        available: true,
-        factory: () => new FingerChaseGame(this.input, () => this.returnToMenu()),
-      },
-      {
         id: "simon-says",
         name: "Simon Says",
         available: true,
@@ -54,12 +39,6 @@ export class MenuScene implements Scene {
         name: "Trill Battle",
         available: true,
         factory: () => new TrillBattleGame(this.input, () => this.returnToMenu()),
-      },
-      {
-        id: "pattern-rain",
-        name: "Pattern Rain",
-        available: true,
-        factory: () => new PatternRainGame(this.input, () => this.returnToMenu()),
       },
     ];
   }
