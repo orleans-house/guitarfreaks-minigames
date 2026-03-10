@@ -4,6 +4,7 @@ import { drawText } from "../core/canvas.ts";
 import { getHighScore, saveHighScore } from "../core/score.ts";
 import type { Chart, Judgement, RhythmPhase } from "./types.ts";
 import { loadMidiFile } from "./midi-loader.ts";
+import { MidiSynth } from "./synth.ts";
 import { judgeNote, findClosestNote, calcScore, processAutoMiss, MISS_WINDOW } from "./judge.ts";
 import {
   drawHighway,
@@ -28,6 +29,9 @@ export class RhythmGame implements Scene {
   private dragOverHandler: ((e: DragEvent) => void) | null = null;
   private dropHandler: ((e: DragEvent) => void) | null = null;
   private errorMessage: string | null = null;
+
+  // audio
+  private synth = new MidiSynth();
 
   // playing
   private chart: Chart | null = null;
@@ -109,7 +113,9 @@ export class RhythmGame implements Scene {
     reader.onload = () => {
       try {
         const arrayBuffer = reader.result as ArrayBuffer;
-        this.chart = loadMidiFile(arrayBuffer, file.name);
+        const loadedSong = loadMidiFile(arrayBuffer, file.name);
+        this.chart = loadedSong.chart;
+        this.synth.loadSong(loadedSong.midi);
         this.startPlaying();
       } catch (e: unknown) {
         if (e instanceof Error) {
@@ -175,6 +181,7 @@ export class RhythmGame implements Scene {
 
   private transitionToResult(): void {
     this.phase = "result";
+    this.synth.stop();
     saveHighScore(GAME_ID, this.score);
   }
 
@@ -203,6 +210,7 @@ export class RhythmGame implements Scene {
         this.isCountdown = false;
         this.startTimestamp = now;
         this.currentTime = 0;
+        this.synth.play(this.startTimestamp);
       }
       return;
     }
@@ -473,6 +481,7 @@ export class RhythmGame implements Scene {
   }
 
   exit(): void {
+    this.synth.stop();
     this.cleanupFileInput();
   }
 }

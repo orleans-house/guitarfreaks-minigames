@@ -1,3 +1,4 @@
+import type { Midi } from "@tonejs/midi";
 import type { NeckKey } from "../core/gamepad.ts";
 
 /** MIDIから変換された1つのノート */
@@ -24,6 +25,12 @@ export interface Chart {
   duration: number;
   /** 総ノート数 */
   totalNotes: number;
+}
+
+/** MIDIファイルから読み込んだ曲データ（譜面＋シンセ用Midiオブジェクト） */
+export interface LoadedSong {
+  chart: Chart;
+  midi: Midi;
 }
 
 /** 判定ランク */

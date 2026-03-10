@@ -1,5 +1,5 @@
 import { Midi } from "@tonejs/midi";
-import type { Chart, ChartNote } from "./types.ts";
+import type { Chart, ChartNote, LoadedSong } from "./types.ts";
 import type { NeckKey } from "../core/gamepad.ts";
 
 /** Clone Hero互換 MIDIノート番号 → NeckKey マッピング */
@@ -15,10 +15,10 @@ const NOTE_MAP: Record<number, NeckKey> = {
  * MIDIファイルのArrayBufferをパースしてChartデータに変換する。
  * @param arrayBuffer MIDIファイルの内容
  * @param fileName ファイル名（タイトルのフォールバック用）
- * @returns Chart オブジェクト
+ * @returns LoadedSong オブジェクト（Chart + 生のMidiオブジェクト）
  * @throws ノートが0個の場合、またはパース失敗時
  */
-export function loadMidiFile(arrayBuffer: ArrayBuffer, fileName: string): Chart {
+export function loadMidiFile(arrayBuffer: ArrayBuffer, fileName: string): LoadedSong {
   const midi = new Midi(arrayBuffer);
 
   // 全トラックからノートを収集
@@ -67,11 +67,13 @@ export function loadMidiFile(arrayBuffer: ArrayBuffer, fileName: string): Chart 
   const lastNoteTime = chartNotes[chartNotes.length - 1].time;
   const duration = lastNoteTime + 2;
 
-  return {
+  const chart: Chart = {
     title,
     bpm: Math.round(bpm),
     notes: chartNotes,
     duration,
     totalNotes: chartNotes.length,
   };
+
+  return { chart, midi };
 }
