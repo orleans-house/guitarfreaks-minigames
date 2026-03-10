@@ -8,6 +8,7 @@ import { MidiSynth } from "./synth.ts";
 import { judgeNote, findClosestNote, calcScore, processAutoMiss, MISS_WINDOW } from "./judge.ts";
 import {
   drawHighway,
+  drawBarLines,
   drawNotes,
   drawHUD,
   drawJudgementFeedback,
@@ -386,6 +387,7 @@ export class RhythmGame implements Scene {
 
     // ハイウェイ描画
     drawHighway(ctx, w, h, neckState);
+    drawBarLines(ctx, this.currentTime, this.chart.bpm, this.chart.duration, w, h);
     drawNotes(ctx, this.chart.notes, this.currentTime, w, h);
     drawHUD(
       ctx,

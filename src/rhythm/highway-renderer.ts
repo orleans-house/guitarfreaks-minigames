@@ -122,6 +122,43 @@ export function drawHighway(
 }
 
 /**
+ * 小節線を描画する。
+ */
+export function drawBarLines(
+  ctx: CanvasRenderingContext2D,
+  currentTime: number,
+  bpm: number,
+  duration: number,
+  w: number,
+  h: number,
+): void {
+  const layout = calcLayout(w, h);
+  const beatsPerBar = 4;
+  const secPerBar = (60 / bpm) * beatsPerBar;
+
+  const totalWidth = layout.laneWidth * LANES.length;
+  const bgX = layout.startX - layout.laneWidth / 2;
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+  ctx.lineWidth = 1;
+
+  // 表示範囲内の小節線を描画
+  const firstBar = Math.max(0, Math.floor((currentTime - LOOK_BEHIND_SEC) / secPerBar));
+  const lastBar = Math.ceil((currentTime + LOOK_AHEAD_SEC) / secPerBar);
+
+  for (let bar = firstBar; bar <= lastBar && bar * secPerBar <= duration; bar++) {
+    const barTime = bar * secPerBar;
+    const y = layout.judgeLineY - (barTime - currentTime) * layout.scrollSpeed;
+    if (y < 0 || y > h) continue;
+
+    ctx.beginPath();
+    ctx.moveTo(bgX, y);
+    ctx.lineTo(bgX + totalWidth, y);
+    ctx.stroke();
+  }
+}
+
+/**
  * ノートを描画する。
  */
 export function drawNotes(
