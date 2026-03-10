@@ -29,6 +29,7 @@ export class SpeedTypingGame implements Scene {
   private problemTimer = 0;
   private currentProblem: Problem | null = null;
   private queue: Problem[] = [];
+  private waitingRelease = false; // Must release all buttons before next input
 
   constructor(
     private input: GamepadInput,
@@ -53,6 +54,7 @@ export class SpeedTypingGame implements Scene {
     this.misses = 0;
     this.problemTimer = 0;
     this.queue = [];
+    this.waitingRelease = false;
     this.fillQueue();
     this.advanceProblem();
   }
@@ -146,27 +148,58 @@ export class SpeedTypingGame implements Scene {
     if (this.currentProblem) {
       this.problemTimer += dt;
       if (this.problemTimer >= PROBLEM_TIME_LIMIT) {
-        // Time's up for this problem -- penalty
         this.score = Math.max(0, this.score - 1);
         this.misses++;
         this.problemTimer = 0;
+        this.waitingRelease = true;
         this.advanceProblem();
         return;
       }
 
-      // Check if current neck state matches the target
       const neckState = this.input.getNeckState();
-      let match = true;
+      const anyPressed = LANES.some((k) => neckState[k]);
+
+      // Wait for full release before accepting next input
+      if (this.waitingRelease) {
+        if (!anyPressed) {
+          this.waitingRelease = false;
+        }
+        return;
+      }
+
+      if (!anyPressed) return; // No input yet
+
+      // Check for wrong buttons (pressed but target is OFF)
+      let hasWrong = false;
       for (const key of LANES) {
-        if (neckState[key] !== this.currentProblem.target[key]) {
-          match = false;
+        if (neckState[key] && !this.currentProblem.target[key]) {
+          hasWrong = true;
           break;
         }
       }
 
-      if (match) {
+      if (hasWrong) {
+        this.score = Math.max(0, this.score - 1);
+        this.misses++;
+        this.problemTimer = 0;
+        this.waitingRelease = true;
+        this.advanceProblem();
+        return;
+      }
+
+      // Check if all target buttons are pressed
+      let allTargetPressed = true;
+      for (const key of LANES) {
+        if (this.currentProblem.target[key] && !neckState[key]) {
+          allTargetPressed = false;
+          break;
+        }
+      }
+
+      if (allTargetPressed) {
         this.score++;
         this.problemTimer = 0;
+        this.waitingRelease = true;
         this.advanceProblem();
       }
     }
