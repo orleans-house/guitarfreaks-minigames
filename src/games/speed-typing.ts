@@ -169,7 +169,6 @@ export class SpeedTypingGame implements Scene {
         this.misses++;
         this.lastMissTime = this.elapsed;
         this.waitingRelease = true;
-        this.advanceProblem();
         return;
       }
 
