@@ -1,11 +1,11 @@
 import type { NeckKey } from "./gamepad.ts";
 
 export const BUTTON_COLORS: Record<NeckKey, string> = {
-  r: "#ff4444",
-  g: "#44ff44",
-  b: "#4488ff",
-  y: "#ffdd44",
-  p: "#cc44ff",
+  r: "#ff0000",
+  g: "#00ff00",
+  b: "#0000ff",
+  y: "#ffff00",
+  p: "#ff00ff",
 };
 
 export const NECK_LABELS: Record<NeckKey, string> = {
