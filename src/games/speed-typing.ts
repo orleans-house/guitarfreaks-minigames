@@ -28,6 +28,7 @@ export class SpeedTypingGame implements Scene {
   private currentProblem: Problem | null = null;
   private queue: Problem[] = [];
   private waitingRelease = false; // Must release all buttons before next input
+  private lastMissTime = -Infinity;
 
   constructor(
     private input: GamepadInput,
@@ -166,6 +167,7 @@ export class SpeedTypingGame implements Scene {
       if (hasWrong) {
         this.score = Math.max(0, this.score - 1);
         this.misses++;
+        this.lastMissTime = this.elapsed;
         this.waitingRelease = true;
         this.advanceProblem();
         return;
@@ -222,7 +224,27 @@ export class SpeedTypingGame implements Scene {
       color: timeRemaining < 10000 ? "#ff4444" : "#ffffff",
       align: "left",
     });
-    drawText(ctx, `SCORE: ${this.score}`, w / 2, 40, { size: 28 });
+    const missAge = this.elapsed - this.lastMissTime;
+    const isMissRecent = missAge < 800;
+    const scoreColor = isMissRecent ? "#ff4444" : "#ffffff";
+    drawText(ctx, `SCORE: ${this.score}`, w / 2, 40, { size: 28, color: scoreColor });
+    drawText(ctx, `MISS: ${this.misses}`, w - 120, 40, {
+      size: 22,
+      color: isMissRecent ? "#ff4444" : "#888888",
+      align: "right",
+    });
+
+    // Miss popup
+    if (isMissRecent) {
+      const alpha = Math.max(0, 1 - missAge / 800);
+      const yOffset = missAge * 0.04;
+      ctx.globalAlpha = alpha;
+      drawText(ctx, "-1", w / 2, 75 - yOffset, {
+        size: 36,
+        color: "#ff4444",
+      });
+      ctx.globalAlpha = 1;
+    }
 
     // Layout
     const buttonSize = Math.min(80, (w - 150) / 5);
