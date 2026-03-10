@@ -8,8 +8,7 @@ const MAX_SPAN = 2; // Normal mode: max distance between ON buttons
 const GAME_ID_NORMAL = "speed-typing";
 const GAME_ID_ABSURD = "speed-typing-absurd";
 const GAME_DURATION = 60_000; // 60 seconds
-const PROBLEM_TIME_LIMIT = 5_000; // 5 seconds per problem
-const PREVIEW_COUNT = 3; // Number of upcoming problems to show
+const PREVIEW_COUNT = 8; // Number of upcoming problems to show
 
 type Mode = "normal" | "absurd";
 type Phase = "mode-select" | "playing" | "result";
@@ -26,7 +25,6 @@ export class SpeedTypingGame implements Scene {
   private elapsed = 0;
   private score = 0;
   private misses = 0;
-  private problemTimer = 0;
   private currentProblem: Problem | null = null;
   private queue: Problem[] = [];
   private waitingRelease = false; // Must release all buttons before next input
@@ -42,7 +40,6 @@ export class SpeedTypingGame implements Scene {
     this.elapsed = 0;
     this.score = 0;
     this.misses = 0;
-    this.problemTimer = 0;
     this.currentProblem = null;
   }
 
@@ -52,7 +49,6 @@ export class SpeedTypingGame implements Scene {
     this.elapsed = 0;
     this.score = 0;
     this.misses = 0;
-    this.problemTimer = 0;
     this.queue = [];
     this.waitingRelease = false;
     this.fillQueue();
@@ -144,18 +140,7 @@ export class SpeedTypingGame implements Scene {
       return;
     }
 
-    // Check problem time limit
     if (this.currentProblem) {
-      this.problemTimer += dt;
-      if (this.problemTimer >= PROBLEM_TIME_LIMIT) {
-        this.score = Math.max(0, this.score - 1);
-        this.misses++;
-        this.problemTimer = 0;
-        this.waitingRelease = true;
-        this.advanceProblem();
-        return;
-      }
-
       const neckState = this.input.getNeckState();
       const anyPressed = LANES.some((k) => neckState[k]);
 
@@ -181,7 +166,6 @@ export class SpeedTypingGame implements Scene {
       if (hasWrong) {
         this.score = Math.max(0, this.score - 1);
         this.misses++;
-        this.problemTimer = 0;
         this.waitingRelease = true;
         this.advanceProblem();
         return;
@@ -198,7 +182,6 @@ export class SpeedTypingGame implements Scene {
 
       if (allTargetPressed) {
         this.score++;
-        this.problemTimer = 0;
         this.waitingRelease = true;
         this.advanceProblem();
       }
@@ -245,10 +228,11 @@ export class SpeedTypingGame implements Scene {
     const buttonSize = Math.min(80, (w - 150) / 5);
     const spacing = buttonSize + 30;
     const startX = w / 2 - (spacing * 4) / 2;
-    const previewRowHeight = buttonSize * 0.7 + 20;
-    const previewStartY = 90;
-    const targetY = previewStartY + PREVIEW_COUNT * previewRowHeight + 30;
-    const playerY = h - 100;
+    const playerY = h - 80;
+    const targetY = playerY - buttonSize * 1.8;
+    const separatorY = targetY - buttonSize * 0.8;
+    const previewRowHeight = Math.min(buttonSize * 0.7 + 10, (separatorY - 80) / PREVIEW_COUNT);
+    const previewStartY = separatorY - PREVIEW_COUNT * previewRowHeight;
 
     // Preview queue (upcoming problems stacked above, nearest at bottom)
     for (let q = 0; q < this.queue.length; q++) {
@@ -291,8 +275,8 @@ export class SpeedTypingGame implements Scene {
     ctx.strokeStyle = "#444444";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(startX - buttonSize, targetY - buttonSize * 0.8);
-    ctx.lineTo(startX + spacing * 4 + buttonSize, targetY - buttonSize * 0.8);
+    ctx.moveTo(startX - buttonSize, separatorY);
+    ctx.lineTo(startX + spacing * 4 + buttonSize, separatorY);
     ctx.stroke();
 
     // Current target (large, prominent)
@@ -343,13 +327,6 @@ export class SpeedTypingGame implements Scene {
       }
     }
 
-    // Problem time limit bar (between target and player input)
-    const barWidth = spacing * 4 + buttonSize;
-    const barHeight = 8;
-    const barX = w / 2 - barWidth / 2;
-    const barY = (targetY + playerY) / 2 - 10;
-    const progress = Math.max(0, 1 - this.problemTimer / PROBLEM_TIME_LIMIT);
-
     // Player current state
     const neckState = this.input.getNeckState();
     for (let i = 0; i < LANES.length; i++) {
@@ -399,17 +376,6 @@ export class SpeedTypingGame implements Scene {
         });
       }
     }
-
-    ctx.fillStyle = "#333333";
-    ctx.beginPath();
-    ctx.roundRect(barX, barY, barWidth, barHeight, 4);
-    ctx.fill();
-
-    const barColor = progress > 0.3 ? "#44aaff" : "#ff4444";
-    ctx.fillStyle = barColor;
-    ctx.beginPath();
-    ctx.roundRect(barX, barY, barWidth * progress, barHeight, 4);
-    ctx.fill();
 
     // Title
     const title = this.mode === "normal" ? "Speed Typing" : "Speed Typing (理不尽)";
