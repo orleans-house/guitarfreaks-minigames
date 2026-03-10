@@ -148,17 +148,13 @@ export function drawNotes(
     // 画面外チェック
     if (y < -layout.noteRadius || y > h + layout.noteRadius) continue;
 
-    // ノート描画（カラー円）
+    // ノート描画（細い横棒）
+    const barWidth = layout.laneWidth * 0.85;
+    const barHeight = 6;
     ctx.fillStyle = BUTTON_COLORS[note.lane];
     ctx.beginPath();
-    ctx.arc(x, y, layout.noteRadius, 0, Math.PI * 2);
+    ctx.roundRect(x - barWidth / 2, y - barHeight / 2, barWidth, barHeight, 3);
     ctx.fill();
-
-    // ノート内にレーンラベル
-    drawText(ctx, NECK_LABELS[note.lane], x, y, {
-      size: 16,
-      color: "#000000",
-    });
   }
 }
 
