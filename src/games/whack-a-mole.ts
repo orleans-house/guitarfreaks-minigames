@@ -12,6 +12,7 @@ const MIN_MOLE_LIFETIME = 800;
 const MAX_SIMULTANEOUS_MOLES = 3;
 const HIT_SCORE = 100;
 const COMBO_BONUS_MULTIPLIER = 10;
+const MISS_PENALTY = 50;
 
 const LANES: NeckKey[] = ["r", "g", "b", "y", "p"];
 
@@ -151,6 +152,10 @@ export class WhackAMoleGame implements Scene {
           const points = HIT_SCORE + this.combo * COMBO_BONUS_MULTIPLIER;
           this.score += points;
           this.hitEffects.push({ lane: key, time: this.elapsed, score: points });
+        } else {
+          // Wrong button -- no mole on this lane
+          this.score = Math.max(0, this.score - MISS_PENALTY);
+          this.combo = 0;
         }
       }
     }

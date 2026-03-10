@@ -6,6 +6,7 @@ import { getHighScore, saveHighScore } from "../core/score.ts";
 const LANES: NeckKey[] = ["r", "g", "b", "y", "p"];
 const GAME_ID = "speed-typing";
 const GAME_DURATION = 60_000; // 60 seconds
+const PROBLEM_TIME_LIMIT = 5_000; // 5 seconds per problem
 
 type Phase = "playing" | "result";
 
@@ -18,6 +19,8 @@ export class SpeedTypingGame implements Scene {
   private phase: Phase = "playing";
   private elapsed = 0;
   private score = 0;
+  private misses = 0;
+  private problemTimer = 0;
   private currentProblem: Problem | null = null;
 
   constructor(
@@ -29,6 +32,8 @@ export class SpeedTypingGame implements Scene {
     this.phase = "playing";
     this.elapsed = 0;
     this.score = 0;
+    this.misses = 0;
+    this.problemTimer = 0;
     this.generateProblem();
   }
 
@@ -81,8 +86,19 @@ export class SpeedTypingGame implements Scene {
       return;
     }
 
-    // Check if current neck state matches the target
+    // Check problem time limit
     if (this.currentProblem) {
+      this.problemTimer += dt;
+      if (this.problemTimer >= PROBLEM_TIME_LIMIT) {
+        // Time's up for this problem -- penalty
+        this.score = Math.max(0, this.score - 1);
+        this.misses++;
+        this.problemTimer = 0;
+        this.generateProblem();
+        return;
+      }
+
+      // Check if current neck state matches the target
       const neckState = this.input.getNeckState();
       let match = true;
       for (const key of LANES) {
@@ -94,6 +110,7 @@ export class SpeedTypingGame implements Scene {
 
       if (match) {
         this.score++;
+        this.problemTimer = 0;
         this.generateProblem();
       }
     }
@@ -261,6 +278,24 @@ export class SpeedTypingGame implements Scene {
       }
     }
 
+
+    // Problem time limit bar
+    const barWidth = spacing * 4 + buttonSize;
+    const barHeight = 8;
+    const barX = w / 2 - barWidth / 2;
+    const barY = (targetY + playerY) / 2;
+    const progress = Math.max(0, 1 - this.problemTimer / PROBLEM_TIME_LIMIT);
+
+    ctx.fillStyle = "#333333";
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barWidth, barHeight, 4);
+    ctx.fill();
+
+    const barColor = progress > 0.3 ? "#44aaff" : "#ff4444";
+    ctx.fillStyle = barColor;
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barWidth * progress, barHeight, 4);
+    ctx.fill();
 
     // Title
     drawText(ctx, "Speed Typing", w / 2, h - 40, {

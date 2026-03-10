@@ -6,6 +6,7 @@ import { getHighScore, saveHighScore } from "../core/score.ts";
 const GAME_ID = "trill-battle";
 const ROUND_DURATION = 10_000; // 10 seconds per round
 const COUNTDOWN_DURATION = 2000; // 2 seconds countdown before each round
+const WRONG_PENALTY = 3; // Lose 3 counts on wrong button
 
 const ROUNDS: [NeckKey, NeckKey][] = [
   ["r", "g"],
@@ -117,6 +118,15 @@ export class TrillBattleGame implements Scene {
     if (justPressed[expectedKey]) {
       this.trillCount++;
       this.nextExpected = this.nextExpected === 0 ? 1 : 0;
+    } else {
+      // Check if any wrong button was pressed
+      const otherKey = pair[this.nextExpected === 0 ? 1 : 0];
+      for (const key of (["r", "g", "b", "y", "p"] as NeckKey[])) {
+        if (justPressed[key] && key !== expectedKey && key !== otherKey) {
+          this.trillCount = Math.max(0, this.trillCount - WRONG_PENALTY);
+          break;
+        }
+      }
     }
   }
 
