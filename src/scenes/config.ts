@@ -104,6 +104,8 @@ export class ConfigScene implements Scene {
 
       const pickUpIdx = this.mapping.pick_up;
       const pickDownIdx = this.mapping.pick_down;
+      const neckRIdx = this.mapping.neck_r;
+      const neckGIdx = this.mapping.neck_g;
       const startIdx = this.mapping.start;
       const selectIdx = this.mapping.select;
 
@@ -114,10 +116,12 @@ export class ConfigScene implements Scene {
 
       const totalItems = ALL_ACTIONS.length + 1;
 
-      if (current[pickDownIdx] && !this.prevButtons[pickDownIdx]) {
+      if ((current[pickDownIdx] && !this.prevButtons[pickDownIdx]) ||
+          (current[neckRIdx] && !this.prevButtons[neckRIdx])) {
         this.cursor = (this.cursor + 1) % totalItems;
       }
-      if (current[pickUpIdx] && !this.prevButtons[pickUpIdx]) {
+      if ((current[pickUpIdx] && !this.prevButtons[pickUpIdx]) ||
+          (current[neckGIdx] && !this.prevButtons[neckGIdx])) {
         this.cursor = (this.cursor - 1 + totalItems) % totalItems;
       }
 

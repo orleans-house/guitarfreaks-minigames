@@ -85,10 +85,11 @@ export class MenuScene implements Scene {
   }
 
   update(_dt: number): void {
-    if (this.input.isPickDownJustPressed()) {
+    const neck = this.input.getNeckJustPressed();
+    if (this.input.isPickDownJustPressed() || neck.r) {
       this.cursor = (this.cursor + 1) % this.entries.length;
     }
-    if (this.input.isPickUpJustPressed()) {
+    if (this.input.isPickUpJustPressed() || neck.g) {
       this.cursor =
         (this.cursor - 1 + this.entries.length) % this.entries.length;
     }

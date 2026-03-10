@@ -105,10 +105,11 @@ export class SpeedTypingGame implements Scene {
 
   update(dt: number): void {
     if (this.phase === "mode-select") {
-      if (this.input.isPickDownJustPressed()) {
+      const neck = this.input.getNeckJustPressed();
+      if (this.input.isPickDownJustPressed() || neck.r) {
         this.modeCursor = (this.modeCursor + 1) % 2;
       }
-      if (this.input.isPickUpJustPressed()) {
+      if (this.input.isPickUpJustPressed() || neck.g) {
         this.modeCursor = (this.modeCursor + 1) % 2;
       }
       if (this.input.isStartJustPressed()) {
