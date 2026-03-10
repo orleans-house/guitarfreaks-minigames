@@ -1,0 +1,323 @@
+import type { Scene } from "../core/scene.ts";
+import type { GamepadInput, NeckKey } from "../core/gamepad.ts";
+import { BUTTON_COLORS, NECK_LABELS, drawText } from "../core/canvas.ts";
+import { getHighScore, saveHighScore } from "../core/score.ts";
+
+const LANES: NeckKey[] = ["r", "g", "b", "y", "p"];
+const GAME_ID = "speed-typing";
+const GAME_DURATION = 60_000; // 60 seconds
+
+type Phase = "playing" | "result";
+
+interface Problem {
+  target: Record<NeckKey, boolean>;
+  onCount: number;
+}
+
+export class SpeedTypingGame implements Scene {
+  private phase: Phase = "playing";
+  private elapsed = 0;
+  private score = 0;
+  private currentProblem: Problem | null = null;
+  private flashEffect: { time: number } | null = null;
+
+  constructor(
+    private input: GamepadInput,
+    private onReturnToMenu: () => void,
+  ) {}
+
+  enter(): void {
+    this.phase = "playing";
+    this.elapsed = 0;
+    this.score = 0;
+    this.flashEffect = null;
+    this.generateProblem();
+  }
+
+  private getOnButtonCount(): number {
+    // Increase number of ON buttons based on elapsed time
+    const progress = this.elapsed / GAME_DURATION;
+    if (progress < 0.3) return 1;
+    if (progress < 0.6) return 2;
+    return 3;
+  }
+
+  private generateProblem(): void {
+    const onCount = this.getOnButtonCount();
+    const target: Record<NeckKey, boolean> = {
+      r: false,
+      g: false,
+      b: false,
+      y: false,
+      p: false,
+    };
+
+    // Randomly pick onCount buttons to be ON
+    const available = [...LANES];
+    for (let i = 0; i < onCount; i++) {
+      const idx = Math.floor(Math.random() * available.length);
+      target[available[idx]] = true;
+      available.splice(idx, 1);
+    }
+
+    this.currentProblem = { target, onCount };
+  }
+
+  update(dt: number): void {
+    if (this.phase === "result") {
+      if (
+        this.input.isPickUpJustPressed() ||
+        this.input.isPickDownJustPressed()
+      ) {
+        this.onReturnToMenu();
+      }
+      return;
+    }
+
+    this.elapsed += dt;
+
+    // Check game over
+    if (this.elapsed >= GAME_DURATION) {
+      this.phase = "result";
+      saveHighScore(GAME_ID, this.score);
+      return;
+    }
+
+    // Check if current neck state matches the target
+    if (this.currentProblem) {
+      const neckState = this.input.getNeckState();
+      let match = true;
+      for (const key of LANES) {
+        if (neckState[key] !== this.currentProblem.target[key]) {
+          match = false;
+          break;
+        }
+      }
+
+      if (match) {
+        this.score++;
+        this.flashEffect = { time: this.elapsed };
+        this.generateProblem();
+      }
+    }
+
+    // Clear old flash effects
+    if (this.flashEffect && this.elapsed - this.flashEffect.time > 300) {
+      this.flashEffect = null;
+    }
+  }
+
+  draw(ctx: CanvasRenderingContext2D): void {
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+
+    // Background
+    ctx.fillStyle = "#1a1a2e";
+    ctx.fillRect(0, 0, w, h);
+
+    if (this.phase === "result") {
+      this.drawResult(ctx, w, h);
+      return;
+    }
+
+    this.drawPlaying(ctx, w, h);
+  }
+
+  private drawPlaying(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+  ): void {
+    // HUD
+    const timeRemaining = Math.max(0, GAME_DURATION - this.elapsed);
+    drawText(ctx, `TIME: ${(timeRemaining / 1000).toFixed(1)}s`, 120, 40, {
+      size: 28,
+      color: timeRemaining < 10000 ? "#ff4444" : "#ffffff",
+      align: "left",
+    });
+    drawText(ctx, `SCORE: ${this.score}`, w / 2, 40, { size: 28 });
+
+    const onCount = this.currentProblem?.onCount ?? 1;
+    drawText(ctx, `${onCount} button${onCount > 1 ? "s" : ""}`, w - 120, 40, {
+      size: 22,
+      color: "#cccccc",
+      align: "right",
+    });
+
+    // Target display (center)
+    const buttonSize = Math.min(100, (w - 150) / 5);
+    const spacing = buttonSize + 30;
+    const startX = w / 2 - (spacing * 4) / 2;
+    const targetY = h * 0.35;
+    const playerY = h * 0.65;
+
+    drawText(ctx, "TARGET", w / 2, targetY - buttonSize * 0.5 - 30, {
+      size: 20,
+      color: "#888888",
+    });
+
+    if (this.currentProblem) {
+      for (let i = 0; i < LANES.length; i++) {
+        const lane = LANES[i];
+        const x = startX + i * spacing;
+        const isOn = this.currentProblem.target[lane];
+
+        if (isOn) {
+          // ON: bright, large
+          const glowSize = buttonSize * 0.65;
+          const gradient = ctx.createRadialGradient(
+            x,
+            targetY,
+            0,
+            x,
+            targetY,
+            glowSize * 1.5,
+          );
+          gradient.addColorStop(0, BUTTON_COLORS[lane] + "88");
+          gradient.addColorStop(1, BUTTON_COLORS[lane] + "00");
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(x, targetY, glowSize * 1.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = BUTTON_COLORS[lane];
+          ctx.beginPath();
+          ctx.arc(x, targetY, glowSize, 0, Math.PI * 2);
+          ctx.fill();
+
+          drawText(ctx, NECK_LABELS[lane], x, targetY, {
+            size: 32,
+            color: "#000000",
+          });
+        } else {
+          // OFF: dim
+          ctx.fillStyle = BUTTON_COLORS[lane] + "22";
+          ctx.beginPath();
+          ctx.arc(x, targetY, buttonSize * 0.4, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = BUTTON_COLORS[lane] + "44";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, targetY, buttonSize * 0.4, 0, Math.PI * 2);
+          ctx.stroke();
+
+          drawText(ctx, NECK_LABELS[lane], x, targetY, {
+            size: 20,
+            color: BUTTON_COLORS[lane] + "44",
+          });
+        }
+      }
+    }
+
+    // Player current state (bottom)
+    drawText(ctx, "YOUR INPUT", w / 2, playerY - buttonSize * 0.5 - 30, {
+      size: 20,
+      color: "#888888",
+    });
+
+    const neckState = this.input.getNeckState();
+    for (let i = 0; i < LANES.length; i++) {
+      const lane = LANES[i];
+      const x = startX + i * spacing;
+      const isPressed = neckState[lane];
+      const isCorrect =
+        this.currentProblem && neckState[lane] === this.currentProblem.target[lane];
+
+      if (isPressed) {
+        // Pressed: show in color
+        ctx.fillStyle = isCorrect
+          ? BUTTON_COLORS[lane]
+          : BUTTON_COLORS[lane] + "88";
+        ctx.beginPath();
+        ctx.arc(x, playerY, buttonSize * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Wrong indicator
+        if (!isCorrect) {
+          ctx.strokeStyle = "#ff4444";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(x, playerY, buttonSize * 0.55, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        drawText(ctx, NECK_LABELS[lane], x, playerY, {
+          size: 28,
+          color: "#000000",
+        });
+      } else {
+        // Not pressed
+        ctx.fillStyle = BUTTON_COLORS[lane] + "22";
+        ctx.beginPath();
+        ctx.arc(x, playerY, buttonSize * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = isCorrect
+          ? BUTTON_COLORS[lane] + "44"
+          : "#ff4444" + "66";
+        ctx.lineWidth = isCorrect ? 1 : 2;
+        ctx.beginPath();
+        ctx.arc(x, playerY, buttonSize * 0.4, 0, Math.PI * 2);
+        ctx.stroke();
+
+        drawText(ctx, NECK_LABELS[lane], x, playerY, {
+          size: 20,
+          color: BUTTON_COLORS[lane] + "44",
+        });
+      }
+    }
+
+    // Flash effect on correct answer
+    if (this.flashEffect) {
+      const age = this.elapsed - this.flashEffect.time;
+      const alpha = 0.3 * (1 - age / 300);
+      if (alpha > 0) {
+        ctx.fillStyle = `rgba(68, 255, 68, ${alpha})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+
+    // Title
+    drawText(ctx, "Speed Typing", w / 2, h - 40, {
+      size: 20,
+      color: "#888888",
+    });
+  }
+
+  private drawResult(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+  ): void {
+    drawText(ctx, "RESULT", w / 2, 100, { size: 48, color: "#ffdd44" });
+    drawText(ctx, "Speed Typing", w / 2, 160, { size: 24, color: "#888888" });
+
+    drawText(ctx, `CORRECT: ${this.score}`, w / 2, 260, {
+      size: 40,
+      color: "#ffffff",
+    });
+
+    const highScore = getHighScore(GAME_ID);
+    drawText(ctx, `HIGH SCORE: ${highScore}`, w / 2, 340, {
+      size: 28,
+      color: "#ffdd44",
+    });
+
+    if (this.score >= highScore && this.score > 0) {
+      drawText(ctx, "NEW RECORD!", w / 2, 400, {
+        size: 32,
+        color: "#ff4444",
+      });
+    }
+
+    drawText(ctx, "ピッキングでメニューに戻る", w / 2, h - 60, {
+      size: 20,
+      color: "#888888",
+    });
+  }
+
+  exit(): void {
+    // Nothing to clean up
+  }
+}
