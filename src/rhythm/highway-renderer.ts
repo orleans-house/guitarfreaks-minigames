@@ -48,7 +48,7 @@ interface HighwayLayout {
 
 function calcLayout(w: number, h: number): HighwayLayout {
   const laneWidth = Math.min(80, (w - 200) / 5);
-  const spacing = laneWidth + 10;
+  const spacing = laneWidth;
   const startX = w / 2 - (spacing * 4) / 2;
   const judgeLineY = h * (1 - JUDGE_LINE_RATIO);
   const scrollSpeed = judgeLineY / LOOK_AHEAD_SEC;
@@ -68,19 +68,22 @@ export function drawHighway(
 ): void {
   const layout = calcLayout(w, h);
 
-  // レーン背景（半透明の縦帯）
+  // レーン背景（真っ黒）
+  const totalWidth = layout.laneWidth * LANES.length;
+  const bgX = layout.startX - layout.laneWidth / 2;
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(bgX, 0, totalWidth, h);
+
+  // 押下時のレーンハイライト
   for (let i = 0; i < LANES.length; i++) {
     const lane = LANES[i];
     const x = layout.startX + i * layout.spacing;
     const isPressed = neckState[lane];
 
-    ctx.fillStyle = BUTTON_COLORS[lane] + (isPressed ? "22" : "0a");
-    ctx.fillRect(
-      x - layout.laneWidth / 2,
-      0,
-      layout.laneWidth,
-      h,
-    );
+    if (isPressed) {
+      ctx.fillStyle = BUTTON_COLORS[lane] + "22";
+      ctx.fillRect(x - layout.laneWidth / 2, 0, layout.laneWidth, h);
+    }
   }
 
   // 判定ライン（白い横線）
