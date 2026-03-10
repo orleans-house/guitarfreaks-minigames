@@ -2,6 +2,7 @@ export const NECK_BUTTONS = { r: 4, g: 3, b: 2, y: 1, p: 0 } as const;
 export const PICK_UP = 11;
 export const PICK_DOWN = 12;
 export const START_BUTTON = 9;
+export const SELECT_BUTTON = 8;
 
 export type NeckKey = keyof typeof NECK_BUTTONS; // 'r' | 'g' | 'b' | 'y' | 'p'
 export type NeckState = Record<NeckKey, boolean>;
@@ -17,6 +18,8 @@ export class GamepadInput {
   private currPick = { up: false, down: false };
   private prevStart = false;
   private currStart = false;
+  private prevSelect = false;
+  private currSelect = false;
   private _connected = false;
 
   poll(): void {
@@ -24,6 +27,7 @@ export class GamepadInput {
     this.prevNeck = { ...this.currNeck };
     this.prevPick = { ...this.currPick };
     this.prevStart = this.currStart;
+    this.prevSelect = this.currSelect;
 
     const gamepads = navigator.getGamepads();
     let found = false;
@@ -40,6 +44,7 @@ export class GamepadInput {
       this.currPick.down = gp.buttons[PICK_DOWN]?.pressed ?? false;
       this.currPick.up = gp.buttons[PICK_UP]?.pressed ?? false;
       this.currStart = gp.buttons[START_BUTTON]?.pressed ?? false;
+      this.currSelect = gp.buttons[SELECT_BUTTON]?.pressed ?? false;
       break;
     }
 
@@ -49,6 +54,7 @@ export class GamepadInput {
       this.currNeck = emptyNeck();
       this.currPick = { up: false, down: false };
       this.currStart = false;
+      this.currSelect = false;
     }
   }
 
@@ -90,6 +96,10 @@ export class GamepadInput {
 
   isStartJustPressed(): boolean {
     return this.currStart && !this.prevStart;
+  }
+
+  isSelectJustPressed(): boolean {
+    return this.currSelect && !this.prevSelect;
   }
 
   isConnected(): boolean {

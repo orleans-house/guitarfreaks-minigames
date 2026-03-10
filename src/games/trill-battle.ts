@@ -71,13 +71,13 @@ export class TrillBattleGame implements Scene {
   update(dt: number): void {
     this.elapsed += dt;
 
+    // SELECT to return to menu at any time
+    if (this.input.isSelectJustPressed()) {
+      this.onReturnToMenu();
+      return;
+    }
+
     if (this.phase === "result") {
-      if (
-        this.input.isPickUpJustPressed() ||
-        this.input.isPickDownJustPressed()
-      ) {
-        this.onReturnToMenu();
-      }
       return;
     }
 
@@ -375,7 +375,7 @@ export class TrillBattleGame implements Scene {
       });
     }
 
-    drawText(ctx, "ピッキングでメニューに戻る", w / 2, h - 60, {
+    drawText(ctx, "SELECT: メニューに戻る", w / 2, h - 60, {
       size: 20,
       color: "#888888",
     });
