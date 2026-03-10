@@ -47,7 +47,7 @@ interface HighwayLayout {
 }
 
 function calcLayout(w: number, h: number): HighwayLayout {
-  const laneWidth = Math.min(80, (w - 200) / 5);
+  const laneWidth = Math.min(50, (w - 200) / 5);
   const spacing = laneWidth;
   const startX = w / 2 - (spacing * 4) / 2;
   const judgeLineY = h * (1 - JUDGE_LINE_RATIO);
@@ -153,7 +153,7 @@ export function drawNotes(
 
     // ノート描画（横棒）
     const barWidth = layout.laneWidth;
-    const barHeight = 8;
+    const barHeight = 12;
     ctx.fillStyle = BUTTON_COLORS[note.lane];
     ctx.fillRect(x - barWidth / 2, y - barHeight / 2, barWidth, barHeight);
   }
