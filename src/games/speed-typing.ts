@@ -217,13 +217,14 @@ export class SpeedTypingGame implements Scene {
     const targetY = previewStartY + PREVIEW_COUNT * previewRowHeight + 30;
     const playerY = h - 100;
 
-    // Preview queue (upcoming problems stacked above)
-    for (let q = this.queue.length - 1; q >= 0; q--) {
+    // Preview queue (upcoming problems stacked above, nearest at bottom)
+    for (let q = 0; q < this.queue.length; q++) {
       const problem = this.queue[q];
-      const py = previewStartY + q * previewRowHeight;
+      // q=0 (next) at bottom, q=last at top
+      const py = previewStartY + (PREVIEW_COUNT - 1 - q) * previewRowHeight;
       const previewSize = buttonSize * 0.3;
-      // Fade: closer to current = more opaque
-      const opacity = 0.25 + 0.25 * (PREVIEW_COUNT - q) / PREVIEW_COUNT;
+      // Fade: q=0 (next) is most opaque, further = more faded
+      const opacity = 0.5 - 0.15 * q;
 
       for (let i = 0; i < LANES.length; i++) {
         const lane = LANES[i];
