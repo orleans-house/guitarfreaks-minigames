@@ -54,11 +54,7 @@ export class SpeedTypingGame implements Scene {
   }
 
   private getOnButtonCount(): number {
-    // Increase number of ON buttons based on elapsed time
-    const progress = this.elapsed / GAME_DURATION;
-    if (progress < 0.3) return 1;
-    if (progress < 0.6) return 2;
-    return 3;
+    return 1 + Math.floor(Math.random() * 3); // 1〜3
   }
 
   private generateProblem(): void {
