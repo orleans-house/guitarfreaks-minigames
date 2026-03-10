@@ -47,7 +47,7 @@ interface HighwayLayout {
 }
 
 function calcLayout(w: number, h: number): HighwayLayout {
-  const laneWidth = Math.min(50, (w - 200) / 5);
+  const laneWidth = Math.min(58, (w - 200) / 5);
   const spacing = laneWidth;
   const startX = w / 2 - (spacing * 4) / 2;
   const judgeLineY = h * (1 - JUDGE_LINE_RATIO);
