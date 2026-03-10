@@ -9,6 +9,7 @@ const GAME_ID_NORMAL = "speed-typing";
 const GAME_ID_ABSURD = "speed-typing-absurd";
 const GAME_DURATION = 60_000; // 60 seconds
 const PROBLEM_TIME_LIMIT = 5_000; // 5 seconds per problem
+const PREVIEW_COUNT = 3; // Number of upcoming problems to show
 
 type Mode = "normal" | "absurd";
 type Phase = "mode-select" | "playing" | "result";
@@ -27,6 +28,7 @@ export class SpeedTypingGame implements Scene {
   private misses = 0;
   private problemTimer = 0;
   private currentProblem: Problem | null = null;
+  private queue: Problem[] = [];
 
   constructor(
     private input: GamepadInput,
@@ -50,58 +52,56 @@ export class SpeedTypingGame implements Scene {
     this.score = 0;
     this.misses = 0;
     this.problemTimer = 0;
-    this.generateProblem();
+    this.queue = [];
+    this.fillQueue();
+    this.advanceProblem();
   }
 
   private getOnButtonCount(): number {
     return 1 + Math.floor(Math.random() * 3); // 1〜3
   }
 
-  private generateProblem(): void {
+  private createProblem(): Problem {
     const onCount = this.getOnButtonCount();
+    const target: Record<NeckKey, boolean> = {
+      r: false, g: false, b: false, y: false, p: false,
+    };
 
     if (this.mode === "absurd" || onCount === 1) {
-      this.generateAbsurdProblem(onCount);
+      const available = [...LANES];
+      for (let i = 0; i < onCount; i++) {
+        const idx = Math.floor(Math.random() * available.length);
+        target[available[idx]] = true;
+        available.splice(idx, 1);
+      }
     } else {
-      this.generateNormalProblem(onCount);
+      const maxStart = LANES.length - 1 - MAX_SPAN;
+      const startIdx = Math.floor(Math.random() * (maxStart + 1));
+      const candidates: NeckKey[] = [];
+      for (let i = startIdx; i <= startIdx + MAX_SPAN && i < LANES.length; i++) {
+        candidates.push(LANES[i]);
+      }
+      for (let i = candidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+      }
+      for (let i = 0; i < onCount && i < candidates.length; i++) {
+        target[candidates[i]] = true;
+      }
+    }
+
+    return { target, onCount };
+  }
+
+  private fillQueue(): void {
+    while (this.queue.length < PREVIEW_COUNT) {
+      this.queue.push(this.createProblem());
     }
   }
 
-  private generateAbsurdProblem(onCount: number): void {
-    const target: Record<NeckKey, boolean> = {
-      r: false, g: false, b: false, y: false, p: false,
-    };
-    const available = [...LANES];
-    for (let i = 0; i < onCount; i++) {
-      const idx = Math.floor(Math.random() * available.length);
-      target[available[idx]] = true;
-      available.splice(idx, 1);
-    }
-    this.currentProblem = { target, onCount };
-  }
-
-  private generateNormalProblem(onCount: number): void {
-    const target: Record<NeckKey, boolean> = {
-      r: false, g: false, b: false, y: false, p: false,
-    };
-
-    // Pick a random start position, then choose onCount buttons within MAX_SPAN
-    const maxStart = LANES.length - 1 - MAX_SPAN;
-    const startIdx = Math.floor(Math.random() * (maxStart + 1));
-    // Available lanes within the span
-    const candidates: NeckKey[] = [];
-    for (let i = startIdx; i <= startIdx + MAX_SPAN && i < LANES.length; i++) {
-      candidates.push(LANES[i]);
-    }
-    // Shuffle and pick onCount
-    for (let i = candidates.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-    }
-    for (let i = 0; i < onCount && i < candidates.length; i++) {
-      target[candidates[i]] = true;
-    }
-    this.currentProblem = { target, onCount };
+  private advanceProblem(): void {
+    this.currentProblem = this.queue.shift() ?? this.createProblem();
+    this.fillQueue();
   }
 
   update(dt: number): void {
@@ -150,7 +150,7 @@ export class SpeedTypingGame implements Scene {
         this.score = Math.max(0, this.score - 1);
         this.misses++;
         this.problemTimer = 0;
-        this.generateProblem();
+        this.advanceProblem();
         return;
       }
 
@@ -167,7 +167,7 @@ export class SpeedTypingGame implements Scene {
       if (match) {
         this.score++;
         this.problemTimer = 0;
-        this.generateProblem();
+        this.advanceProblem();
       }
     }
 
@@ -208,25 +208,60 @@ export class SpeedTypingGame implements Scene {
     });
     drawText(ctx, `SCORE: ${this.score}`, w / 2, 40, { size: 28 });
 
-    const onCount = this.currentProblem?.onCount ?? 1;
-    drawText(ctx, `${onCount} button${onCount > 1 ? "s" : ""}`, w - 120, 40, {
-      size: 22,
-      color: "#cccccc",
-      align: "right",
-    });
-
-    // Target display (center)
-    const buttonSize = Math.min(100, (w - 150) / 5);
+    // Layout
+    const buttonSize = Math.min(80, (w - 150) / 5);
     const spacing = buttonSize + 30;
     const startX = w / 2 - (spacing * 4) / 2;
-    const targetY = h * 0.35;
-    const playerY = h * 0.65;
+    const previewRowHeight = buttonSize * 0.7 + 20;
+    const previewStartY = 90;
+    const targetY = previewStartY + PREVIEW_COUNT * previewRowHeight + 30;
+    const playerY = h - 100;
 
-    drawText(ctx, "TARGET", w / 2, targetY - buttonSize * 0.5 - 30, {
-      size: 20,
-      color: "#888888",
-    });
+    // Preview queue (upcoming problems stacked above)
+    for (let q = this.queue.length - 1; q >= 0; q--) {
+      const problem = this.queue[q];
+      const py = previewStartY + q * previewRowHeight;
+      const previewSize = buttonSize * 0.3;
+      // Fade: closer to current = more opaque
+      const opacity = 0.25 + 0.25 * (PREVIEW_COUNT - q) / PREVIEW_COUNT;
 
+      for (let i = 0; i < LANES.length; i++) {
+        const lane = LANES[i];
+        const x = startX + i * spacing;
+        const isOn = problem.target[lane];
+
+        if (isOn) {
+          ctx.globalAlpha = opacity;
+          ctx.fillStyle = BUTTON_COLORS[lane];
+          ctx.beginPath();
+          ctx.arc(x, py, previewSize, 0, Math.PI * 2);
+          ctx.fill();
+          drawText(ctx, NECK_LABELS[lane], x, py, {
+            size: 14,
+            color: "#000000",
+          });
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.globalAlpha = opacity * 0.3;
+          ctx.strokeStyle = BUTTON_COLORS[lane];
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(x, py, previewSize, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+
+    // Separator line between preview and current
+    ctx.strokeStyle = "#444444";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(startX - buttonSize, targetY - buttonSize * 0.8);
+    ctx.lineTo(startX + spacing * 4 + buttonSize, targetY - buttonSize * 0.8);
+    ctx.stroke();
+
+    // Current target (large, prominent)
     if (this.currentProblem) {
       for (let i = 0; i < LANES.length; i++) {
         const lane = LANES[i];
@@ -234,15 +269,9 @@ export class SpeedTypingGame implements Scene {
         const isOn = this.currentProblem.target[lane];
 
         if (isOn) {
-          // ON: bright, large
           const glowSize = buttonSize * 0.65;
           const gradient = ctx.createRadialGradient(
-            x,
-            targetY,
-            0,
-            x,
-            targetY,
-            glowSize * 1.5,
+            x, targetY, 0, x, targetY, glowSize * 1.5,
           );
           gradient.addColorStop(0, BUTTON_COLORS[lane] + "88");
           gradient.addColorStop(1, BUTTON_COLORS[lane] + "00");
@@ -261,7 +290,6 @@ export class SpeedTypingGame implements Scene {
             color: "#000000",
           });
         } else {
-          // OFF: dim
           ctx.fillStyle = BUTTON_COLORS[lane] + "22";
           ctx.beginPath();
           ctx.arc(x, targetY, buttonSize * 0.4, 0, Math.PI * 2);
@@ -281,12 +309,14 @@ export class SpeedTypingGame implements Scene {
       }
     }
 
-    // Player current state (bottom)
-    drawText(ctx, "YOUR INPUT", w / 2, playerY - buttonSize * 0.5 - 30, {
-      size: 20,
-      color: "#888888",
-    });
+    // Problem time limit bar (between target and player input)
+    const barWidth = spacing * 4 + buttonSize;
+    const barHeight = 8;
+    const barX = w / 2 - barWidth / 2;
+    const barY = (targetY + playerY) / 2 - 10;
+    const progress = Math.max(0, 1 - this.problemTimer / PROBLEM_TIME_LIMIT);
 
+    // Player current state
     const neckState = this.input.getNeckState();
     for (let i = 0; i < LANES.length; i++) {
       const lane = LANES[i];
@@ -296,7 +326,6 @@ export class SpeedTypingGame implements Scene {
         this.currentProblem && neckState[lane] === this.currentProblem.target[lane];
 
       if (isPressed) {
-        // Pressed: show in color
         ctx.fillStyle = isCorrect
           ? BUTTON_COLORS[lane]
           : BUTTON_COLORS[lane] + "88";
@@ -304,7 +333,6 @@ export class SpeedTypingGame implements Scene {
         ctx.arc(x, playerY, buttonSize * 0.55, 0, Math.PI * 2);
         ctx.fill();
 
-        // Wrong indicator
         if (!isCorrect) {
           ctx.strokeStyle = "#ff4444";
           ctx.lineWidth = 3;
@@ -318,7 +346,6 @@ export class SpeedTypingGame implements Scene {
           color: "#000000",
         });
       } else {
-        // Not pressed
         ctx.fillStyle = BUTTON_COLORS[lane] + "22";
         ctx.beginPath();
         ctx.arc(x, playerY, buttonSize * 0.4, 0, Math.PI * 2);
@@ -338,14 +365,6 @@ export class SpeedTypingGame implements Scene {
         });
       }
     }
-
-
-    // Problem time limit bar
-    const barWidth = spacing * 4 + buttonSize;
-    const barHeight = 8;
-    const barX = w / 2 - barWidth / 2;
-    const barY = (targetY + playerY) / 2;
-    const progress = Math.max(0, 1 - this.problemTimer / PROBLEM_TIME_LIMIT);
 
     ctx.fillStyle = "#333333";
     ctx.beginPath();
