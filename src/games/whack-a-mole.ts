@@ -254,16 +254,6 @@ export class WhackAMoleGame implements Scene {
         ctx.arc(x + 10, moleY - 8, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Flashing warning when about to expire (last 300ms)
-        const remaining = mole.lifetime - age;
-        if (remaining < 300) {
-          ctx.globalAlpha = 0.3 + 0.7 * Math.abs(Math.sin(age * 0.02));
-          ctx.fillStyle = "#ffffff";
-          ctx.beginPath();
-          ctx.arc(x, moleY, holeRadius * 0.8, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
       }
 
       // Draw hit effect

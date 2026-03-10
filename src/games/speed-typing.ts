@@ -19,7 +19,6 @@ export class SpeedTypingGame implements Scene {
   private elapsed = 0;
   private score = 0;
   private currentProblem: Problem | null = null;
-  private flashEffect: { time: number } | null = null;
 
   constructor(
     private input: GamepadInput,
@@ -30,7 +29,6 @@ export class SpeedTypingGame implements Scene {
     this.phase = "playing";
     this.elapsed = 0;
     this.score = 0;
-    this.flashEffect = null;
     this.generateProblem();
   }
 
@@ -96,15 +94,10 @@ export class SpeedTypingGame implements Scene {
 
       if (match) {
         this.score++;
-        this.flashEffect = { time: this.elapsed };
         this.generateProblem();
       }
     }
 
-    // Clear old flash effects
-    if (this.flashEffect && this.elapsed - this.flashEffect.time > 300) {
-      this.flashEffect = null;
-    }
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
@@ -268,15 +261,6 @@ export class SpeedTypingGame implements Scene {
       }
     }
 
-    // Flash effect on correct answer
-    if (this.flashEffect) {
-      const age = this.elapsed - this.flashEffect.time;
-      const alpha = 0.3 * (1 - age / 300);
-      if (alpha > 0) {
-        ctx.fillStyle = `rgba(68, 255, 68, ${alpha})`;
-        ctx.fillRect(0, 0, w, h);
-      }
-    }
 
     // Title
     drawText(ctx, "Speed Typing", w / 2, h - 40, {

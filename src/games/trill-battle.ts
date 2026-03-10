@@ -31,7 +31,6 @@ export class TrillBattleGame implements Scene {
   private totalScore = 0;
   private elapsed = 0;
   private roundResultTimer = 0;
-  private hitFlash: { time: number } | null = null;
 
   constructor(
     private input: GamepadInput,
@@ -49,7 +48,6 @@ export class TrillBattleGame implements Scene {
     this.totalScore = 0;
     this.elapsed = 0;
     this.roundResultTimer = 0;
-    this.hitFlash = null;
   }
 
   private getCurrentPair(): [NeckKey, NeckKey] {
@@ -67,7 +65,6 @@ export class TrillBattleGame implements Scene {
     this.countdownTimer = 0;
     this.trillCount = 0;
     this.nextExpected = 0;
-    this.hitFlash = null;
   }
 
   update(dt: number): void {
@@ -120,12 +117,6 @@ export class TrillBattleGame implements Scene {
     if (justPressed[expectedKey]) {
       this.trillCount++;
       this.nextExpected = this.nextExpected === 0 ? 1 : 0;
-      this.hitFlash = { time: this.elapsed };
-    }
-
-    // Clear old flash
-    if (this.hitFlash && this.elapsed - this.hitFlash.time > 100) {
-      this.hitFlash = null;
     }
   }
 
@@ -268,15 +259,6 @@ export class TrillBattleGame implements Scene {
       },
     );
 
-    // Hit flash
-    if (this.hitFlash) {
-      const age = this.elapsed - this.hitFlash.time;
-      const alpha = 0.2 * (1 - age / 100);
-      if (alpha > 0) {
-        ctx.fillStyle = `rgba(68, 255, 68, ${alpha})`;
-        ctx.fillRect(0, 0, w, h);
-      }
-    }
 
     // Time bar
     const barWidth = 400;

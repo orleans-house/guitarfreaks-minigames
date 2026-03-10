@@ -22,8 +22,6 @@ export class SimonSaysGame implements Scene {
   private successTimer = 0;
   private score = 0;
   private elapsed = 0;
-  private flashEffect: { key: NeckKey; correct: boolean; time: number } | null =
-    null;
 
   constructor(
     private input: GamepadInput,
@@ -40,7 +38,6 @@ export class SimonSaysGame implements Scene {
     this.successTimer = 0;
     this.score = 0;
     this.elapsed = 0;
-    this.flashEffect = null;
     this.generateInitialSequence();
   }
 
@@ -119,7 +116,6 @@ export class SimonSaysGame implements Scene {
         const expected = this.sequence[this.playerIndex];
         if (key === expected) {
           // Correct
-          this.flashEffect = { key, correct: true, time: this.elapsed };
           this.playerIndex++;
 
           if (this.playerIndex >= this.sequence.length) {
@@ -130,7 +126,6 @@ export class SimonSaysGame implements Scene {
           }
         } else {
           // Wrong
-          this.flashEffect = { key, correct: false, time: this.elapsed };
           this.phase = "gameover";
           saveHighScore(GAME_ID, this.score);
         }
@@ -138,10 +133,6 @@ export class SimonSaysGame implements Scene {
       }
     }
 
-    // Clear old flash effects
-    if (this.flashEffect && this.elapsed - this.flashEffect.time > 300) {
-      this.flashEffect = null;
-    }
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
@@ -206,12 +197,6 @@ export class SimonSaysGame implements Scene {
         isLit = true;
       }
 
-      // Flash effect for input phase
-      const hasFlash =
-        this.flashEffect &&
-        this.flashEffect.key === lane &&
-        this.elapsed - this.flashEffect.time < 300;
-
       if (isLit) {
         // Glow effect
         const glowSize = buttonSize * 0.7;
@@ -260,20 +245,6 @@ export class SimonSaysGame implements Scene {
         });
       }
 
-      // Flash overlay for correct/wrong input
-      if (hasFlash && this.flashEffect) {
-        const age = this.elapsed - this.flashEffect.time;
-        const alpha = 0.6 * (1 - age / 300);
-        if (alpha > 0) {
-          const flashColor = this.flashEffect.correct
-            ? `rgba(68, 255, 68, ${alpha})`
-            : `rgba(255, 68, 68, ${alpha})`;
-          ctx.fillStyle = flashColor;
-          ctx.beginPath();
-          ctx.arc(x, buttonY, buttonSize * 0.6, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
     }
 
     // During input phase, show which buttons in sequence have been completed

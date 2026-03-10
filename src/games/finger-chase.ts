@@ -30,7 +30,6 @@ export class FingerChaseGame implements Scene {
   private hitCount = 0;
   private pattern: Pattern = "bounce";
   private bounceDirection = 1; // 1 = right, -1 = left
-  private flashEffect: { type: "correct" | "wrong"; time: number } | null = null;
   private elapsed = 0;
 
   constructor(
@@ -49,7 +48,6 @@ export class FingerChaseGame implements Scene {
     this.hitCount = 0;
     this.pattern = "bounce";
     this.bounceDirection = 1;
-    this.flashEffect = null;
     this.elapsed = 0;
   }
 
@@ -122,7 +120,6 @@ export class FingerChaseGame implements Scene {
     if (this.targetTimer >= this.graceTime) {
       // Time expired -- lose a life
       this.lives--;
-      this.flashEffect = { type: "wrong", time: this.elapsed };
       if (this.lives <= 0) {
         this.phase = "result";
         saveHighScore(GAME_ID, this.score);
@@ -139,7 +136,6 @@ export class FingerChaseGame implements Scene {
           // Correct!
           this.score += HIT_SCORE;
           this.hitCount++;
-          this.flashEffect = { type: "correct", time: this.elapsed };
           this.updateLevel();
           this.graceTime = Math.max(
             MIN_GRACE_TIME,
@@ -149,15 +145,10 @@ export class FingerChaseGame implements Scene {
         } else {
           // Wrong button
           this.score = Math.max(0, this.score - MISS_PENALTY);
-          this.flashEffect = { type: "wrong", time: this.elapsed };
         }
       }
     }
 
-    // Clear old flash effects
-    if (this.flashEffect && this.elapsed - this.flashEffect.time > 300) {
-      this.flashEffect = null;
-    }
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
@@ -283,18 +274,6 @@ export class FingerChaseGame implements Scene {
       }
     }
 
-    // Flash effect overlay
-    if (this.flashEffect) {
-      const age = this.elapsed - this.flashEffect.time;
-      const alpha = 0.3 * (1 - age / 300);
-      if (alpha > 0) {
-        ctx.fillStyle =
-          this.flashEffect.type === "correct"
-            ? `rgba(68, 255, 68, ${alpha})`
-            : `rgba(255, 68, 68, ${alpha})`;
-        ctx.fillRect(0, 0, w, h);
-      }
-    }
 
     // Title
     drawText(ctx, "Finger Chase", w / 2, h - 40, {
