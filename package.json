@@ -22,5 +22,8 @@
   "devDependencies": {
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28"
   }
 }

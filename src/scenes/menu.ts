@@ -5,6 +5,7 @@ import { getHighScore } from "../core/score.ts";
 import { SimonSaysGame } from "../games/simon-says.ts";
 import { SpeedTypingGame } from "../games/speed-typing.ts";
 import { TrillBattleGame } from "../games/trill-battle.ts";
+import { RhythmGame } from "../rhythm/rhythm-game.ts";
 import { ConfigScene } from "./config.ts";
 
 interface MenuEntry {
@@ -48,6 +49,13 @@ export class MenuScene implements Scene {
         available: true,
         isGame: true,
         factory: () => new TrillBattleGame(this.input, () => this.returnToMenu()),
+      },
+      {
+        id: "rhythm-game",
+        name: "Rhythm Game",
+        available: true,
+        isGame: true,
+        factory: () => new RhythmGame(this.input, () => this.returnToMenu()),
       },
       {
         id: "config",
