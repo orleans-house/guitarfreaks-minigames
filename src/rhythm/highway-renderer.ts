@@ -86,18 +86,18 @@ export function drawHighway(
     }
   }
 
-  // 判定ライン（白い横線）
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
-  ctx.lineWidth = 3;
+  // 判定ライン（黄色の二重線）
+  const lineLeft = layout.startX - layout.laneWidth / 2 - 10;
+  const lineRight = layout.startX + (LANES.length - 1) * layout.spacing + layout.laneWidth / 2 + 10;
+  ctx.strokeStyle = "#ffff00";
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(
-    layout.startX - layout.laneWidth / 2 - 10,
-    layout.judgeLineY,
-  );
-  ctx.lineTo(
-    layout.startX + (LANES.length - 1) * layout.spacing + layout.laneWidth / 2 + 10,
-    layout.judgeLineY,
-  );
+  ctx.moveTo(lineLeft, layout.judgeLineY - 4);
+  ctx.lineTo(lineRight, layout.judgeLineY - 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(lineLeft, layout.judgeLineY + 4);
+  ctx.lineTo(lineRight, layout.judgeLineY + 4);
   ctx.stroke();
 
   // レーンラベル（判定ラインの下）+ 押下時のハイライト
