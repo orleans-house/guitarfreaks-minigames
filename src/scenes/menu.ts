@@ -5,40 +5,52 @@ import { getHighScore } from "../core/score.ts";
 import { SimonSaysGame } from "../games/simon-says.ts";
 import { SpeedTypingGame } from "../games/speed-typing.ts";
 import { TrillBattleGame } from "../games/trill-battle.ts";
+import { ConfigScene } from "./config.ts";
 
-interface GameEntry {
+interface MenuEntry {
   id: string;
   name: string;
   available: boolean;
   factory: (() => Scene) | null;
+  isGame: boolean;
 }
 
 export class MenuScene implements Scene {
   private cursor = 0;
-  private games: GameEntry[];
+  private entries: MenuEntry[];
 
   constructor(
     private input: GamepadInput,
     private scenes: SceneManager,
   ) {
-    this.games = [
+    this.entries = [
       {
         id: "simon-says",
         name: "Simon Says",
         available: true,
+        isGame: true,
         factory: () => new SimonSaysGame(this.input, () => this.returnToMenu()),
       },
       {
         id: "speed-typing",
         name: "Speed Typing",
         available: true,
+        isGame: true,
         factory: () => new SpeedTypingGame(this.input, () => this.returnToMenu()),
       },
       {
         id: "trill-battle",
         name: "Trill Battle",
         available: true,
+        isGame: true,
         factory: () => new TrillBattleGame(this.input, () => this.returnToMenu()),
+      },
+      {
+        id: "config",
+        name: "コントローラー設定",
+        available: true,
+        isGame: false,
+        factory: () => new ConfigScene(this.input, this.scenes, () => this.returnToMenu()),
       },
     ];
   }
@@ -49,16 +61,16 @@ export class MenuScene implements Scene {
 
   update(_dt: number): void {
     if (this.input.isPickDownJustPressed()) {
-      this.cursor = (this.cursor + 1) % this.games.length;
+      this.cursor = (this.cursor + 1) % this.entries.length;
     }
     if (this.input.isPickUpJustPressed()) {
       this.cursor =
-        (this.cursor - 1 + this.games.length) % this.games.length;
+        (this.cursor - 1 + this.entries.length) % this.entries.length;
     }
 
     // START button to select
     if (this.input.isStartJustPressed()) {
-      const selected = this.games[this.cursor];
+      const selected = this.entries[this.cursor];
       if (selected.available && selected.factory) {
         this.scenes.changeScene(selected.factory());
       }
@@ -102,8 +114,8 @@ export class MenuScene implements Scene {
     const startY = 220;
     const lineHeight = 60;
 
-    for (let i = 0; i < this.games.length; i++) {
-      const game = this.games[i];
+    for (let i = 0; i < this.entries.length; i++) {
+      const game = this.entries[i];
       const y = startY + i * lineHeight;
       const isSelected = i === this.cursor;
 
@@ -136,14 +148,8 @@ export class MenuScene implements Scene {
         align: "left",
       });
 
-      // Coming Soon or High Score
-      if (!game.available) {
-        drawText(ctx, "Coming Soon", w / 2 + 240, y, {
-          size: 18,
-          color: "#666666",
-          align: "right",
-        });
-      } else {
+      // High Score (games only)
+      if (game.isGame && game.available) {
         const highScore = getHighScore(game.id);
         if (highScore > 0) {
           drawText(ctx, `HI: ${highScore}`, w / 2 + 240, y, {
