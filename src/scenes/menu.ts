@@ -4,6 +4,10 @@ import { drawText } from "../core/canvas.ts";
 import { getHighScore } from "../core/score.ts";
 import { WhackAMoleGame } from "../games/whack-a-mole.ts";
 import { FingerChaseGame } from "../games/finger-chase.ts";
+import { SimonSaysGame } from "../games/simon-says.ts";
+import { SpeedTypingGame } from "../games/speed-typing.ts";
+import { TrillBattleGame } from "../games/trill-battle.ts";
+import { PatternRainGame } from "../games/pattern-rain.ts";
 
 interface GameEntry {
   id: string;
@@ -36,26 +40,26 @@ export class MenuScene implements Scene {
       {
         id: "simon-says",
         name: "Simon Says",
-        available: false,
-        factory: null,
+        available: true,
+        factory: () => new SimonSaysGame(this.input, () => this.returnToMenu()),
       },
       {
         id: "speed-typing",
         name: "Speed Typing",
-        available: false,
-        factory: null,
+        available: true,
+        factory: () => new SpeedTypingGame(this.input, () => this.returnToMenu()),
       },
       {
         id: "trill-battle",
         name: "Trill Battle",
-        available: false,
-        factory: null,
+        available: true,
+        factory: () => new TrillBattleGame(this.input, () => this.returnToMenu()),
       },
       {
         id: "pattern-rain",
         name: "Pattern Rain",
-        available: false,
-        factory: null,
+        available: true,
+        factory: () => new PatternRainGame(this.input, () => this.returnToMenu()),
       },
     ];
   }
