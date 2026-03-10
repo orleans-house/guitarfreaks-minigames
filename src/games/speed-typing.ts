@@ -111,11 +111,7 @@ export class SpeedTypingGame implements Scene {
       if (this.input.isPickUpJustPressed()) {
         this.modeCursor = (this.modeCursor + 1) % 2;
       }
-      const justPressed = this.input.getNeckJustPressed();
-      const anyPressed = (Object.keys(justPressed) as NeckKey[]).some(
-        (k) => justPressed[k],
-      );
-      if (anyPressed) {
+      if (this.input.isStartJustPressed()) {
         this.startGame();
       }
       return;
@@ -463,7 +459,7 @@ export class SpeedTypingGame implements Scene {
       }
     }
 
-    drawText(ctx, "Pick Up/Down: 選択  |  ネックボタン: 決定", w / 2, h - 40, {
+    drawText(ctx, "Pick Up/Down: 選択  |  START: 決定", w / 2, h - 40, {
       size: 16,
       color: "#888888",
     });

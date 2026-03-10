@@ -1,5 +1,5 @@
 import type { Scene, SceneManager } from "../core/scene.ts";
-import type { GamepadInput, NeckKey } from "../core/gamepad.ts";
+import type { GamepadInput } from "../core/gamepad.ts";
 import { drawText } from "../core/canvas.ts";
 import { getHighScore } from "../core/score.ts";
 import { SimonSaysGame } from "../games/simon-says.ts";
@@ -56,13 +56,8 @@ export class MenuScene implements Scene {
         (this.cursor - 1 + this.games.length) % this.games.length;
     }
 
-    // Any neck button to select
-    const justPressed = this.input.getNeckJustPressed();
-    const anyPressed = (Object.keys(justPressed) as NeckKey[]).some(
-      (k) => justPressed[k],
-    );
-
-    if (anyPressed) {
+    // START button to select
+    if (this.input.isStartJustPressed()) {
       const selected = this.games[this.cursor];
       if (selected.available && selected.factory) {
         this.scenes.changeScene(selected.factory());
@@ -98,7 +93,7 @@ export class MenuScene implements Scene {
     }
 
     // Instructions
-    drawText(ctx, "Pick Up/Down: カーソル移動  |  ネックボタン: 決定", w / 2, h - 40, {
+    drawText(ctx, "Pick Up/Down: カーソル移動  |  START: 決定", w / 2, h - 40, {
       size: 16,
       color: "#888888",
     });
