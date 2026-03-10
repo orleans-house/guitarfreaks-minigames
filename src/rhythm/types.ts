@@ -45,6 +45,8 @@ export interface Chart {
 export interface LoadedSong {
   chart: Chart;
   midi: Midi;
+  /** 譜面生成に使用されたトラックのインデックス（シンセで除外するため） */
+  chartTrackIndices: number[];
 }
 
 /** 判定ランク */

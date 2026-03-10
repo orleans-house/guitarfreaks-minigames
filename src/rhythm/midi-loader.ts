@@ -368,8 +368,11 @@ export function loadMidiFile(arrayBuffer: ArrayBuffer, fileName: string): Loaded
 
   // 全トラックからClone Hero互換ノート(60-64)を収集
   let chartNotes: ChartNote[] = [];
+  let chartTrackIndices: number[] = [];
 
-  for (const track of midi.tracks) {
+  for (let ti = 0; ti < midi.tracks.length; ti++) {
+    const track = midi.tracks[ti];
+    let hasChartNote = false;
     for (const note of track.notes) {
       const lane = NOTE_MAP[note.midi];
       if (lane !== undefined) {
@@ -379,7 +382,11 @@ export function loadMidiFile(arrayBuffer: ArrayBuffer, fileName: string): Loaded
           hit: false,
           judgement: null,
         });
+        hasChartNote = true;
       }
+    }
+    if (hasChartNote) {
+      chartTrackIndices.push(ti);
     }
   }
 
@@ -391,6 +398,8 @@ export function loadMidiFile(arrayBuffer: ArrayBuffer, fileName: string): Loaded
     const selectedTracks = selectTracks(midi);
     const merged = mergeAndConvert(selectedTracks);
     chartNotes = fillGaps(merged, allNonDrumTracks);
+    // 選択されたトラックのインデックスを記録
+    chartTrackIndices = selectedTracks.map((st) => midi.tracks.indexOf(st));
   }
 
   if (chartNotes.length === 0) {
@@ -434,5 +443,5 @@ export function loadMidiFile(arrayBuffer: ArrayBuffer, fileName: string): Loaded
     totalNotes: chords.length,
   };
 
-  return { chart, midi };
+  return { chart, midi, chartTrackIndices };
 }

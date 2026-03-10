@@ -117,7 +117,7 @@ export class RhythmGame implements Scene {
         const arrayBuffer = reader.result as ArrayBuffer;
         const loadedSong = loadMidiFile(arrayBuffer, file.name);
         this.chart = loadedSong.chart;
-        this.synth.loadSong(loadedSong.midi);
+        this.synth.loadSong(loadedSong.midi, loadedSong.chartTrackIndices);
         this.startPlaying();
       } catch (e: unknown) {
         if (e instanceof Error) {
@@ -254,6 +254,8 @@ export class RhythmGame implements Scene {
         if (judgement === "miss") {
           this.combo = 0;
         } else {
+          // 成功時: 譜面トラックのノートを即時再生
+          this.synth.playChordNotes(chord.time);
           const points = calcScore(judgement, this.combo);
           this.score += points;
           this.combo++;
