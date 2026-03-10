@@ -15,9 +15,13 @@ interface MenuEntry {
   isGame: boolean;
 }
 
+const START_Y = 220;
+const LINE_HEIGHT = 60;
+
 export class MenuScene implements Scene {
   private cursor = 0;
   private entries: MenuEntry[];
+  private clickHandler: ((e: MouseEvent) => void) | null = null;
 
   constructor(
     private input: GamepadInput,
@@ -57,6 +61,27 @@ export class MenuScene implements Scene {
 
   enter(): void {
     this.cursor = 0;
+    this.clickHandler = (e: MouseEvent) => {
+      const canvas = e.target as HTMLCanvasElement;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      const w = canvas.width;
+
+      for (let i = 0; i < this.entries.length; i++) {
+        const ey = START_Y + i * LINE_HEIGHT;
+        if (x >= w / 2 - 280 && x <= w / 2 + 280 && y >= ey - 22 && y <= ey + 22) {
+          const entry = this.entries[i];
+          if (entry.available && entry.factory) {
+            this.scenes.changeScene(entry.factory());
+          }
+          break;
+        }
+      }
+    };
+    document.querySelector("canvas")?.addEventListener("click", this.clickHandler);
   }
 
   update(_dt: number): void {
@@ -111,8 +136,8 @@ export class MenuScene implements Scene {
     });
 
     // Game list
-    const startY = 220;
-    const lineHeight = 60;
+    const startY = START_Y;
+    const lineHeight = LINE_HEIGHT;
 
     for (let i = 0; i < this.entries.length; i++) {
       const game = this.entries[i];
@@ -167,6 +192,9 @@ export class MenuScene implements Scene {
   }
 
   exit(): void {
-    // Nothing to clean up
+    if (this.clickHandler) {
+      document.querySelector("canvas")?.removeEventListener("click", this.clickHandler);
+      this.clickHandler = null;
+    }
   }
 }

@@ -12,13 +12,17 @@ import { drawText } from "../core/canvas.ts";
 
 type Phase = "list" | "waiting";
 
+const LIST_START_Y = 160;
+const LIST_LINE_HEIGHT = 42;
+
 export class ConfigScene implements Scene {
   private phase: Phase = "list";
   private cursor = 0;
   private mapping: ButtonMapping;
   private waitingAction: ActionName | null = null;
   private prevButtons: boolean[] = [];
-  private waitDelay = 0; // Ignore input briefly after entering wait mode
+  private waitDelay = 0;
+  private clickHandler: ((e: MouseEvent) => void) | null = null;
 
   constructor(
     private input: GamepadInput,
@@ -33,13 +37,40 @@ export class ConfigScene implements Scene {
     this.cursor = 0;
     this.mapping = loadMapping();
     this.waitingAction = null;
+
+    this.clickHandler = (e: MouseEvent) => {
+      const canvas = e.target as HTMLCanvasElement;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const y = (e.clientY - rect.top) * scaleY;
+      const x = (e.clientX - rect.left) * scaleX;
+      const w = canvas.width;
+
+      if (this.phase === "list") {
+        const totalItems = ALL_ACTIONS.length + 1;
+        for (let i = 0; i < totalItems; i++) {
+          const ey = LIST_START_Y + i * LIST_LINE_HEIGHT;
+          if (x >= w / 2 - 280 && x <= w / 2 + 280 && y >= ey - 16 && y <= ey + 18) {
+            if (i < ALL_ACTIONS.length) {
+              this.waitingAction = ALL_ACTIONS[i];
+              this.phase = "waiting";
+              this.waitDelay = 300;
+            } else {
+              this.onBack();
+            }
+            break;
+          }
+        }
+      }
+    };
+    document.querySelector("canvas")?.addEventListener("click", this.clickHandler);
   }
 
   update(dt: number): void {
     if (this.phase === "waiting") {
       this.waitDelay -= dt;
 
-      // Read raw gamepad buttons to detect any press
       const gamepads = navigator.getGamepads();
       for (const gp of gamepads) {
         if (!gp) continue;
@@ -66,12 +97,11 @@ export class ConfigScene implements Scene {
       return;
     }
 
-    // List phase: use raw gamepad reading since mapping might be wrong
+    // List phase: use raw gamepad reading
     const gamepads = navigator.getGamepads();
     for (const gp of gamepads) {
       if (!gp) continue;
 
-      // Use current mapping for pick navigation
       const pickUpIdx = this.mapping.pick_up;
       const pickDownIdx = this.mapping.pick_down;
       const startIdx = this.mapping.start;
@@ -82,31 +112,25 @@ export class ConfigScene implements Scene {
         current.push(gp.buttons[i]?.pressed ?? false);
       }
 
-      const totalItems = ALL_ACTIONS.length + 1; // actions + "戻る"
+      const totalItems = ALL_ACTIONS.length + 1;
 
-      // Pick down = next
       if (current[pickDownIdx] && !this.prevButtons[pickDownIdx]) {
         this.cursor = (this.cursor + 1) % totalItems;
       }
-      // Pick up = prev
       if (current[pickUpIdx] && !this.prevButtons[pickUpIdx]) {
         this.cursor = (this.cursor - 1 + totalItems) % totalItems;
       }
 
-      // START = confirm
       if (current[startIdx] && !this.prevButtons[startIdx]) {
         if (this.cursor < ALL_ACTIONS.length) {
-          // Enter waiting mode for this action
           this.waitingAction = ALL_ACTIONS[this.cursor];
           this.phase = "waiting";
-          this.waitDelay = 300; // Ignore first 300ms to avoid catching the START press
+          this.waitDelay = 300;
         } else {
-          // "戻る" selected
           this.onBack();
         }
       }
 
-      // SELECT = back
       if (current[selectIdx] && !this.prevButtons[selectIdx]) {
         this.onBack();
       }
@@ -128,13 +152,12 @@ export class ConfigScene implements Scene {
       color: "#ffffff",
     });
 
-    drawText(ctx, "STARTでボタンを割り当て  |  SELECTで戻る", w / 2, 110, {
+    drawText(ctx, "クリックまたはSTARTで割り当て  |  SELECTで戻る", w / 2, 110, {
       size: 16,
       color: "#888888",
     });
 
     if (this.phase === "waiting" && this.waitingAction) {
-      // Waiting for button press
       drawText(ctx, ACTION_LABELS[this.waitingAction], w / 2, h / 2 - 40, {
         size: 36,
         color: "#ffdd44",
@@ -146,13 +169,10 @@ export class ConfigScene implements Scene {
       return;
     }
 
-    // List of actions
-    const startY = 160;
-    const lineHeight = 42;
     const totalItems = ALL_ACTIONS.length + 1;
 
     for (let i = 0; i < totalItems; i++) {
-      const y = startY + i * lineHeight;
+      const y = LIST_START_Y + i * LIST_LINE_HEIGHT;
       const isSelected = i === this.cursor;
 
       if (isSelected) {
@@ -181,7 +201,6 @@ export class ConfigScene implements Scene {
           align: "right",
         });
       } else {
-        // "戻る" item
         drawText(ctx, "戻る", w / 2 - 230, y, {
           size: 22,
           color: isSelected ? "#ffffff" : "#cccccc",
@@ -192,6 +211,9 @@ export class ConfigScene implements Scene {
   }
 
   exit(): void {
-    // Nothing to clean up
+    if (this.clickHandler) {
+      document.querySelector("canvas")?.removeEventListener("click", this.clickHandler);
+      this.clickHandler = null;
+    }
   }
 }
