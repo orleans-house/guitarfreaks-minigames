@@ -1,86 +1,110 @@
 import type { Scene, SceneManager } from "../core/scene.ts";
-import type { GamepadInput, NeckKey } from "../core/gamepad.ts";
+import type { GamepadInput } from "../core/gamepad.ts";
 import { drawText } from "../core/canvas.ts";
 import { getHighScore } from "../core/score.ts";
-import { WhackAMoleGame } from "../games/whack-a-mole.ts";
-import { FingerChaseGame } from "../games/finger-chase.ts";
+import { SimonSaysGame } from "../games/simon-says.ts";
+import { SpeedTypingGame } from "../games/speed-typing.ts";
+import { TrillBattleGame } from "../games/trill-battle.ts";
+import { RhythmGame } from "../rhythm/rhythm-game.ts";
+import { ConfigScene } from "./config.ts";
 
-interface GameEntry {
+interface MenuEntry {
   id: string;
   name: string;
   available: boolean;
   factory: (() => Scene) | null;
+  isGame: boolean;
 }
+
+const START_Y = 220;
+const LINE_HEIGHT = 60;
 
 export class MenuScene implements Scene {
   private cursor = 0;
-  private games: GameEntry[];
+  private entries: MenuEntry[];
+  private clickHandler: ((e: MouseEvent) => void) | null = null;
 
   constructor(
     private input: GamepadInput,
     private scenes: SceneManager,
   ) {
-    this.games = [
-      {
-        id: "whack-a-mole",
-        name: "Whack-a-Mole",
-        available: true,
-        factory: () => new WhackAMoleGame(this.input, () => this.returnToMenu()),
-      },
-      {
-        id: "finger-chase",
-        name: "Finger Chase",
-        available: true,
-        factory: () => new FingerChaseGame(this.input, () => this.returnToMenu()),
-      },
+    this.entries = [
       {
         id: "simon-says",
         name: "Simon Says",
-        available: false,
-        factory: null,
+        available: true,
+        isGame: true,
+        factory: () => new SimonSaysGame(this.input, () => this.returnToMenu()),
       },
       {
         id: "speed-typing",
         name: "Speed Typing",
-        available: false,
-        factory: null,
+        available: true,
+        isGame: true,
+        factory: () => new SpeedTypingGame(this.input, () => this.returnToMenu()),
       },
       {
         id: "trill-battle",
         name: "Trill Battle",
-        available: false,
-        factory: null,
+        available: true,
+        isGame: true,
+        factory: () => new TrillBattleGame(this.input, () => this.returnToMenu()),
       },
       {
-        id: "pattern-rain",
-        name: "Pattern Rain",
-        available: false,
-        factory: null,
+        id: "rhythm-game",
+        name: "Rhythm Game",
+        available: true,
+        isGame: true,
+        factory: () => new RhythmGame(this.input, () => this.returnToMenu()),
+      },
+      {
+        id: "config",
+        name: "コントローラー設定",
+        available: true,
+        isGame: false,
+        factory: () => new ConfigScene(this.input, this.scenes, () => this.returnToMenu()),
       },
     ];
   }
 
   enter(): void {
     this.cursor = 0;
+    this.clickHandler = (e: MouseEvent) => {
+      const canvas = e.target as HTMLCanvasElement;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      const w = canvas.width;
+
+      for (let i = 0; i < this.entries.length; i++) {
+        const ey = START_Y + i * LINE_HEIGHT;
+        if (x >= w / 2 - 280 && x <= w / 2 + 280 && y >= ey - 22 && y <= ey + 22) {
+          const entry = this.entries[i];
+          if (entry.available && entry.factory) {
+            this.scenes.changeScene(entry.factory());
+          }
+          break;
+        }
+      }
+    };
+    document.querySelector("canvas")?.addEventListener("click", this.clickHandler);
   }
 
   update(_dt: number): void {
-    if (this.input.isPickDownJustPressed()) {
-      this.cursor = (this.cursor + 1) % this.games.length;
+    const neck = this.input.getNeckJustPressed();
+    if (this.input.isPickDownJustPressed() || neck.r) {
+      this.cursor = (this.cursor + 1) % this.entries.length;
     }
-    if (this.input.isPickUpJustPressed()) {
+    if (this.input.isPickUpJustPressed() || neck.g) {
       this.cursor =
-        (this.cursor - 1 + this.games.length) % this.games.length;
+        (this.cursor - 1 + this.entries.length) % this.entries.length;
     }
 
-    // Any neck button to select
-    const justPressed = this.input.getNeckJustPressed();
-    const anyPressed = (Object.keys(justPressed) as NeckKey[]).some(
-      (k) => justPressed[k],
-    );
-
-    if (anyPressed) {
-      const selected = this.games[this.cursor];
+    // START button to select
+    if (this.input.isStartJustPressed()) {
+      const selected = this.entries[this.cursor];
       if (selected.available && selected.factory) {
         this.scenes.changeScene(selected.factory());
       }
@@ -115,17 +139,17 @@ export class MenuScene implements Scene {
     }
 
     // Instructions
-    drawText(ctx, "Pick Up/Down: カーソル移動  |  ネックボタン: 決定", w / 2, h - 40, {
+    drawText(ctx, "Pick Up/Down: カーソル移動  |  START: 決定", w / 2, h - 40, {
       size: 16,
       color: "#888888",
     });
 
     // Game list
-    const startY = 220;
-    const lineHeight = 60;
+    const startY = START_Y;
+    const lineHeight = LINE_HEIGHT;
 
-    for (let i = 0; i < this.games.length; i++) {
-      const game = this.games[i];
+    for (let i = 0; i < this.entries.length; i++) {
+      const game = this.entries[i];
       const y = startY + i * lineHeight;
       const isSelected = i === this.cursor;
 
@@ -158,14 +182,8 @@ export class MenuScene implements Scene {
         align: "left",
       });
 
-      // Coming Soon or High Score
-      if (!game.available) {
-        drawText(ctx, "Coming Soon", w / 2 + 240, y, {
-          size: 18,
-          color: "#666666",
-          align: "right",
-        });
-      } else {
+      // High Score (games only)
+      if (game.isGame && game.available) {
         const highScore = getHighScore(game.id);
         if (highScore > 0) {
           drawText(ctx, `HI: ${highScore}`, w / 2 + 240, y, {
@@ -183,6 +201,9 @@ export class MenuScene implements Scene {
   }
 
   exit(): void {
-    // Nothing to clean up
+    if (this.clickHandler) {
+      document.querySelector("canvas")?.removeEventListener("click", this.clickHandler);
+      this.clickHandler = null;
+    }
   }
 }
